@@ -26,8 +26,8 @@ The Price Is Right require two parameters.
 * electricity area code that you want to check the price for. Valid values are `SE1`, `SE2`, `SE3` or `SE4`.
 * maximum acceptable price in Swedish krona per kWh without taxes and other charges.
 
-```
-$ tpir SE3 2.35
+```sh
+tpir SE3 2.35
 ```
 
 If the price is below or equals `2.35` SEK/kWh when we run the above example `tpir` exits with the exit code `0`. If the price would happen to be above `2.35` SEK/kWh it exits with `1`. If an error would occur it exits with `2`.
