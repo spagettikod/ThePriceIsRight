@@ -2,13 +2,13 @@
 
 # The Price Is Right
 
-The Price Is Right is a command line tool to check if the current price of electricity is below a given price. The tool can be used when scripting things that depend on the price of electricity.
+The Price Is Right is a command line tool to check if the current price of electricity is equal to or below a given price. The tool can be used when scripting things that depend on the price of electricity.
 
 Usage examples:
 * triggering the charge (or discharge) of residential batteries when the price reaches a certain point
 * shutting down / powering up devices that consume lots of electricity
 
-The tools only works for the Swedish electricity market and uses the API from [Elpriset just nu.se](https://www.elprisetjustnu.se).
+This tool only works for the Swedish electricity market and uses the API from [Elpriset just nu.se](https://www.elprisetjustnu.se).
 
 ## Download
 ### Linux
@@ -21,20 +21,20 @@ curl -Ls https://github.com/spagettikod/ThePriceIsRight/releases/download/v1.0.0
 curl -Ls https://github.com/spagettikod/ThePriceIsRight/releases/download/v1.0.0/tpir1.0.0.macos-arm64.tar.gz | tar x
 ```
 
-### Usage
+## Usage
 The Price Is Right require two parameters.
-* electricity area code this is the area code where you would like to check the price for. Valid values are `SE1`, `SE2`, `SE3` or `SE4`.
+* electricity area code that you want to check the price for. Valid values are `SE1`, `SE2`, `SE3` or `SE4`.
 * maximum acceptable price in Swedish krona per kWh without taxes and other charges.
 
 ```
 $ tpir SE3 2.35
 ```
 
-If the price is below or equals `2.35` SEK/kWh when we run the above example `tpir` exits with the exit code `0`. If the price would happen to be above `2.35` SEK/kWh it exits with `1`. In the case an error occurs it exits with `2`.
+If the price is below or equals `2.35` SEK/kWh when we run the above example `tpir` exits with the exit code `0`. If the price would happen to be above `2.35` SEK/kWh it exits with `1`. If an error would occur it exits with `2`.
 
-Calling `tpir` will load todays prices from the cache. If there are no files for the given electricity area code or if the cached price list has expired the cache is updated by calling the REST API.
+Calling `tpir` will load todays prices from the cache. If there are no cache files for the given electricity area code or if the cached price list has expired the cache is updated by calling the REST API.
 
-#### Example
+### Example
 Here is a more complete example which can be used as a template for a script that will check the price of electricity every 5 minutes and run different commands depending on the price in area `SE3` are 0.87 SEK/kWH or below. 
 ```sh
 #!/bin/sh
@@ -49,7 +49,7 @@ while true; do
 done
 ```
 
-#### Caching
+### Caching
 Daily prices fetched from the REST API are cached locally until they expire for the day. When they expire they are refreshed by calling the REST API again. There is a file for each electricity area code.
 
 On Linux the cache files are stored at `$XDG_CACHE_HOMEthepriceisright/XX_cache.json` or `$HOME/.cache/thepriceisright/XX_cache.json`.
