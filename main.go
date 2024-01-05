@@ -55,7 +55,7 @@ func (tp TodaysPrices) IsValid() bool {
 	return len(tp.Prices) == 24
 }
 
-func cachePath() (string, error) {
+func cachePath(areaCode string) (string, error) {
 	dir, err := os.UserCacheDir()
 	if err != nil {
 		return "", err
@@ -64,12 +64,12 @@ func cachePath() (string, error) {
 	if err := os.MkdirAll(dir, 0750); err != nil {
 		return "", err
 	}
-	return path.Join(dir, "cache.json"), nil
+	return path.Join(dir, areaCode+"_cache.json"), nil
 }
 
-func loadCache() (TodaysPrices, error) {
+func loadCache(areaCode string) (TodaysPrices, error) {
 	todays := TodaysPrices{Prices: []Price{}}
-	cachePath, err := cachePath()
+	cachePath, err := cachePath(areaCode)
 	if err != nil {
 		return todays, err
 	}
@@ -86,9 +86,9 @@ func loadCache() (TodaysPrices, error) {
 	return todays, nil
 }
 
-func load(class string) (TodaysPrices, error) {
+func load(areaCode string) (TodaysPrices, error) {
 	now := time.Now().Local()
-	todays, err := loadCache()
+	todays, err := loadCache(areaCode)
 	if err != nil {
 		return todays, fmt.Errorf("error while trying to load from cache: %w", err)
 	}
@@ -99,7 +99,7 @@ func load(class string) (TodaysPrices, error) {
 	}
 
 	// cache was not accepted, fetch from REST API
-	url := fmt.Sprintf("https://www.elprisetjustnu.se/api/v1/prices/%d/%02d-%02d_%s.json", now.Year(), now.Month(), now.Day(), class)
+	url := fmt.Sprintf("https://www.elprisetjustnu.se/api/v1/prices/%d/%02d-%02d_%s.json", now.Year(), now.Month(), now.Day(), areaCode)
 	resp, err := http.Get(url)
 	if err != nil {
 		return todays, fmt.Errorf("could not fetch daily prices from %s: %w", url, err)
@@ -116,7 +116,7 @@ func load(class string) (TodaysPrices, error) {
 	}
 
 	// save fetched prices as cache
-	cachePath, err := cachePath()
+	cachePath, err := cachePath(areaCode)
 	if err != nil {
 		return todays, err
 	}
@@ -160,17 +160,17 @@ func main() {
 	areaCode, maxPrice, err := parseArgs()
 	if err != nil {
 		fmt.Printf("error: %s\n", err)
-		os.Exit(3)
+		os.Exit(2)
 	}
 	todays, err := load(areaCode)
 	if err != nil {
 		fmt.Printf("error: %s\n", err)
-		os.Exit(3)
+		os.Exit(2)
 	}
 	price, err := todays.Price(time.Now().Local())
 	if err != nil {
 		fmt.Printf("error: %s\n", err)
-		os.Exit(3)
+		os.Exit(2)
 	}
 
 	if price.SekPerKwh > maxPrice {
