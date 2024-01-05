@@ -4,7 +4,7 @@
 
 The Price Is Right is a command line tool to check if the current price of electricity is equal to or below a given price. The tool can be used when scripting things that depend on the price of electricity.
 
-Usage examples:
+Use cases:
 * triggering the charge (or discharge) of residential batteries when the price reaches a certain point
 * shutting down / powering up devices that consume lots of electricity
 
