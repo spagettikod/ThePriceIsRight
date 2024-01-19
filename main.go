@@ -138,21 +138,22 @@ func parseArgs() (string, float64, error) {
 	if !slices.Contains(AreaCodes, code) {
 		return "", 0, fmt.Errorf("area code has invalid value %s, valid values are: %v", code, AreaCodes)
 	}
-	maxPrice, _ := strconv.ParseFloat(args[len(args)-1], 64)
-	if maxPrice <= 0 {
-		return "", 0, errors.New("price must have a valid value")
+	maxPrice, err := strconv.ParseFloat(args[len(args)-1], 64)
+	if err != nil {
+		return "", 0, fmt.Errorf("%v is not a valid price", args[len(args)-1])
 	}
 	return code, maxPrice, nil
 }
 
 func printUsage() {
-	fmt.Println("The Price Is Right calls www.elprisetjustnu.se to check if the price for electricity")
-	fmt.Println("is lower or higher than the given price. If lower the command returns 0, if higher")
-	fmt.Println("it returns 1.")
-	fmt.Println("")
 	fmt.Println("Usage: tpir <area code> <price>")
 	fmt.Println(" area code     valid values are SE1, SE2, SE3 or SE4")
 	fmt.Println(" price         price of electricity in SEK per kWh needs to be lower than this to return 0")
+	fmt.Println("")
+
+	fmt.Println("The Price Is Right calls www.elprisetjustnu.se to check if the price for electricity")
+	fmt.Println("is lower or higher than the given price. If lower the command returns 0, if higher")
+	fmt.Println("it returns 1.")
 	fmt.Println("")
 }
 
