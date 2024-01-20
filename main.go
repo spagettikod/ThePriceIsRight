@@ -1,13 +1,11 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
-	"io"
-	"net/http"
+	"log"
 	"os"
-	"path"
 	"slices"
 	"strconv"
 	"time"
@@ -18,116 +16,20 @@ const (
 )
 
 var (
-	ErrNotFound = errors.New("no price found")
-	AreaCodes   = []string{"SE1", "SE2", "SE3", "SE4"}
+	ErrNotFound      = errors.New("no price found")
+	AreaCodes        = []string{"SE1", "SE2", "SE3", "SE4"}
+	flagDebug   bool = false
 )
 
-type Price struct {
-	SekPerKwh    float64   `json:"SEK_per_kWh"`
-	EurPerKwh    float64   `json:"EUR_per_kWh"`
-	ExchangeRate float64   `json:"EXR"`
-	Start        time.Time `json:"time_start"`
-	End          time.Time `json:"time_end"`
-}
-
-type TodaysPrices struct {
-	Prices []Price
-}
-
-func (tp TodaysPrices) Price(timestamp time.Time) (Price, error) {
-	for _, tp := range tp.Prices {
-		if (timestamp.After(tp.Start) || timestamp == tp.Start) && (timestamp.Before(tp.End) || timestamp == tp.End) {
-			return tp, nil
-		}
+func debug(msg string) {
+	if flagDebug {
+		log.Println(msg)
 	}
-	return Price{}, ErrNotFound
-}
-
-func (tp TodaysPrices) IsExpired(timestamp time.Time) bool {
-	if tp.IsValid() {
-		lastPrice := tp.Prices[len(tp.Prices)-1]
-		return timestamp.After(lastPrice.End) || timestamp == lastPrice.End
-	}
-	return true
-}
-
-func (tp TodaysPrices) IsValid() bool {
-	return len(tp.Prices) == 24
-}
-
-func cachePath(areaCode string) (string, error) {
-	dir, err := os.UserCacheDir()
-	if err != nil {
-		return "", err
-	}
-	dir = path.Join(dir, "thepriceisright")
-	if err := os.MkdirAll(dir, 0750); err != nil {
-		return "", err
-	}
-	return path.Join(dir, areaCode+"_cache.json"), nil
-}
-
-func loadCache(areaCode string) (TodaysPrices, error) {
-	todays := TodaysPrices{Prices: []Price{}}
-	cachePath, err := cachePath(areaCode)
-	if err != nil {
-		return todays, err
-	}
-	b, err := os.ReadFile(cachePath)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return todays, fmt.Errorf("error while loading temporary cache file: %w", err)
-		}
-		return todays, nil
-	}
-	if err := json.Unmarshal(b, &todays.Prices); err != nil {
-		return todays, fmt.Errorf("error while marshaling temporary cache file: %w", err)
-	}
-	return todays, nil
-}
-
-func load(areaCode string) (TodaysPrices, error) {
-	now := time.Now().Local()
-	todays, err := loadCache(areaCode)
-	if err != nil {
-		return todays, fmt.Errorf("error while trying to load from cache: %w", err)
-	}
-
-	// if prices in cache is valid and has not expired we return the cache
-	if todays.IsValid() && !todays.IsExpired(now) {
-		return todays, nil
-	}
-
-	// cache was not accepted, fetch from REST API
-	url := fmt.Sprintf("https://www.elprisetjustnu.se/api/v1/prices/%d/%02d-%02d_%s.json", now.Year(), now.Month(), now.Day(), areaCode)
-	resp, err := http.Get(url)
-	if err != nil {
-		return todays, fmt.Errorf("could not fetch daily prices from %s: %w", url, err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return todays, fmt.Errorf("calling %s responded with status code %v, expected status %v", url, resp.StatusCode, http.StatusOK)
-	}
-	bites, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return todays, fmt.Errorf("error while reading response from %s: %w", url, err)
-	}
-	if err := json.Unmarshal(bites, &todays.Prices); err != nil {
-		return todays, fmt.Errorf("error while marshaling response from %s: %w", url, err)
-	}
-
-	// save fetched prices as cache
-	cachePath, err := cachePath(areaCode)
-	if err != nil {
-		return todays, err
-	}
-	os.WriteFile(cachePath, bites, 0660)
-
-	return todays, nil
 }
 
 func parseArgs() (string, float64, error) {
-	args := os.Args
-	if len(args) < 3 {
+	args := flag.Args()
+	if len(args) < 2 {
 		fmt.Println("error: too few parameters")
 		fmt.Println()
 		printUsage()
@@ -157,24 +59,35 @@ func printUsage() {
 	fmt.Println("")
 }
 
+func init() {
+	flag.BoolVar(&flagDebug, "debug", false, "turn on debug output")
+}
+
 func main() {
+	debug("Starting up, parsing flags and arguments")
+	flag.Parse()
+
 	areaCode, maxPrice, err := parseArgs()
 	if err != nil {
 		fmt.Printf("error: %s\n", err)
 		os.Exit(2)
 	}
-	todays, err := load(areaCode)
+	debug(fmt.Sprintf("Will evaluate if the electricity price for area code %s is lower than %v SEK/kWh ", areaCode, maxPrice))
+	todays, err := Load(areaCode)
 	if err != nil {
 		fmt.Printf("error: %s\n", err)
 		os.Exit(2)
 	}
+	debug(fmt.Sprintf("Looking up current price using timestamp %v", time.Now().Local()))
 	price, err := todays.Price(time.Now().Local())
 	if err != nil {
 		fmt.Printf("error: %s\n", err)
 		os.Exit(2)
 	}
-
+	debug(fmt.Sprintf("Current price for electricity in area code %s is %v SEK/kWh", areaCode, price.SekPerKwh))
 	if price.SekPerKwh > maxPrice {
+		debug(fmt.Sprintf("The Price Is NOT Right! Current electricity price at %v SEK/kWh is higher than the given maximum price at %v SEK/kWh", price.SekPerKwh, maxPrice))
 		os.Exit(1)
 	}
+	debug(fmt.Sprintf("The Price Is Right! Current electricity price at %v SEK/kWh is lower than the given maximum price at %v SEK/kWh", price.SekPerKwh, maxPrice))
 }
