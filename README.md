@@ -13,12 +13,12 @@ This tool only works for the Swedish electricity market and uses the API from [E
 ## Download
 ### Linux
 ```
-curl -Ls https://github.com/spagettikod/ThePriceIsRight/releases/download/v1.0.0/tpir1.0.0.linux-amd64.tar.gz | tar xz
+curl -Ls https://github.com/spagettikod/ThePriceIsRight/releases/download/v1.1.0/tpir1.1.0.linux-amd64.tar.gz | tar xz
 ```
 
 ### MacOS
 ```bash
-curl -Ls https://github.com/spagettikod/ThePriceIsRight/releases/download/v1.0.0/tpir1.0.0.macos-arm64.tar.gz | tar xz
+curl -Ls https://github.com/spagettikod/ThePriceIsRight/releases/download/v1.1.0/tpir1.1.0.macos-arm64.tar.gz | tar xz
 ```
 
 ## Usage
