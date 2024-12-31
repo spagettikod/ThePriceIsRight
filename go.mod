@@ -1,3 +1,3 @@
-module thepriceisright
+module github.com/spagettikod/thepriceisright
 
-go 1.21.2
+go 1.22

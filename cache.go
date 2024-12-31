@@ -1,48 +1,48 @@
-package main
+package thepriceisright
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"os"
-	"path"
+	"io"
+	"log/slog"
+	"net/http"
+	"time"
 )
 
-var (
-	ErrCacheFileNotFound = errors.New("price list cache file not found")
-)
-
-func cachePath(areaCode string) (string, error) {
-	dir, err := os.UserCacheDir()
-	if err != nil {
-		return "", err
-	}
-	dir = path.Join(dir, "thepriceisright")
-	if err := os.MkdirAll(dir, 0750); err != nil {
-		return "", err
-	}
-	return path.Join(dir, areaCode+"_cache.json"), nil
+type Cache interface {
+	AreaCode() string
+	Expired() bool
+	TodaysPrices() TodaysPrices
+	Update() error
 }
 
-func loadCache(areaCode string) (TodaysPrices, error) {
-	todays := TodaysPrices{Prices: []Price{}}
-	cachePath, err := cachePath(areaCode)
+func fetch(areaCode string) (TodaysPrices, error) {
+	now := time.Now().Local()
+	todays := NewTodaysPrices()
+
+	// cache was not accepted, fetch from REST API
+	url := fmt.Sprintf("https://www.elprisetjustnu.se/api/v1/prices/%d/%02d-%02d_%s.json", now.Year(), now.Month(), now.Day(), areaCode)
+	slog.Debug(fmt.Sprintf("Fetching new price list from %s", url))
+	resp, err := http.Get(url)
 	if err != nil {
-		return todays, err
+		return todays, fmt.Errorf("could not fetch daily prices from %s: %w", url, err)
 	}
-	debug(fmt.Sprintf("Looking for price list cache file at %s", cachePath))
-	b, err := os.ReadFile(cachePath)
+	if resp.StatusCode != http.StatusOK {
+		return todays, fmt.Errorf("calling %s responded with status code %v, expected status %v", url, resp.StatusCode, http.StatusOK)
+	}
+	slog.Debug("Downloaded price list without any errors, trying to read the price list")
+	prices := []Price{}
+	bites, err := io.ReadAll(resp.Body)
 	if err != nil {
-		if !os.IsNotExist(err) {
-			return todays, fmt.Errorf("error while loading temporary cache file: %w", err)
-		}
-		debug(fmt.Sprintf("Price list cache file not found at %s", cachePath))
-		return todays, ErrCacheFileNotFound
+		return todays, fmt.Errorf("error while reading response from %s: %w", url, err)
 	}
-	debug("Reading price list")
-	if err := json.Unmarshal(b, &todays.Prices); err != nil {
-		return todays, fmt.Errorf("error while marshaling temporary cache file: %w", err)
+	if err := json.Unmarshal(bites, &prices); err != nil {
+		return todays, fmt.Errorf("error while marshaling response from %s: %w", url, err)
 	}
-	todays.IsCached = true
+
+	todays.SetPrices(prices)
+
+	slog.Debug("New price list read without errors")
+
 	return todays, nil
 }
