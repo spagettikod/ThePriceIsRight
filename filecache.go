@@ -8,7 +8,6 @@ import (
 	"os"
 	"path"
 	"sync"
-	"time"
 )
 
 var (
@@ -16,32 +15,23 @@ var (
 )
 
 type FileCache struct {
-	mu          *sync.Mutex
-	pricesCache TodaysPrices
-	areaCode    string
+	baseCache
+	mu *sync.Mutex
 }
 
 func NewFileCache(areaCode string) (fc *FileCache, err error) {
 	fc = &FileCache{
-		mu:       &sync.Mutex{},
-		areaCode: areaCode,
+		mu:        &sync.Mutex{},
+		baseCache: baseCache{areaCode: areaCode},
 	}
 	fc.pricesCache, err = fc.loadCache()
+	if err != nil && err != ErrCacheFileNotFound {
+		return nil, err
+	}
 	if fc.Expired() {
 		err = fc.Update()
 	}
 	return
-}
-
-func (fc FileCache) AreaCode() string {
-	return fc.areaCode
-}
-
-func (fc FileCache) Expired() bool {
-	if !fc.pricesCache.IsValid() {
-		return true
-	}
-	return fc.pricesCache.IsExpired(time.Now())
 }
 
 func (mc FileCache) TodaysPrices() TodaysPrices {
@@ -55,7 +45,7 @@ func (fc FileCache) Update() error {
 	}
 	fc.mu.Lock()
 	defer fc.mu.Unlock()
-	bites, err := json.Marshal(tp)
+	bites, err := json.Marshal(tp.Prices)
 	if err != nil {
 		return fmt.Errorf("error while marshaling prices")
 	}
@@ -94,9 +84,11 @@ func (fc FileCache) loadCache() (TodaysPrices, error) {
 		slog.Debug(fmt.Sprintf("Price list cache file not found at %s", cachePath))
 		return todays, ErrCacheFileNotFound
 	}
+	prices := []Price{}
 	slog.Debug("Reading price list")
-	if err := json.Unmarshal(b, &todays.Prices); err != nil {
+	if err := json.Unmarshal(b, &prices); err != nil {
 		return todays, fmt.Errorf("error while marshaling temporary cache file: %w", err)
 	}
+	todays.Prices = append(todays.Prices, prices...)
 	return todays, nil
 }

@@ -6,15 +6,14 @@ import (
 )
 
 type MemCache struct {
-	mu          *sync.Mutex
-	pricesCache TodaysPrices
-	areaCode    string
+	baseCache
+	mu *sync.Mutex
 }
 
 func NewMemCache(areaCode string) *MemCache {
 	return &MemCache{
-		mu:       &sync.Mutex{},
-		areaCode: areaCode,
+		mu:        &sync.Mutex{},
+		baseCache: baseCache{areaCode: areaCode},
 	}
 }
 

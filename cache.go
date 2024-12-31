@@ -16,6 +16,22 @@ type Cache interface {
 	Update() error
 }
 
+type baseCache struct {
+	pricesCache TodaysPrices
+	areaCode    string
+}
+
+func (bc baseCache) AreaCode() string {
+	return bc.areaCode
+}
+
+func (bc baseCache) Expired() bool {
+	if !bc.pricesCache.IsValid() {
+		return true
+	}
+	return bc.pricesCache.IsExpired(time.Now())
+}
+
 func fetch(areaCode string) (TodaysPrices, error) {
 	now := time.Now().Local()
 

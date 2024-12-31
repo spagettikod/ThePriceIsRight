@@ -28,12 +28,7 @@ func parseArgs() (thepriceisright.Config, error) {
 	}
 
 	cfg := thepriceisright.NewConfig()
-
-	if len(args) > 2 {
-		// fmt.Println("error: too few parameters")
-		// fmt.Println()
-		// printUsage()
-		// os.Exit(2)
+	if len(args) == 2 {
 		cfg.AreaCode = args[len(args)-2]
 		if !slices.Contains(thepriceisright.AreaCodes, cfg.AreaCode) {
 			return cfg, fmt.Errorf("area code has invalid value %s, valid values are: %v", cfg.AreaCode, thepriceisright.AreaCodes)
@@ -43,6 +38,11 @@ func parseArgs() (thepriceisright.Config, error) {
 		if err != nil {
 			return cfg, fmt.Errorf("%v is not a valid price", args[len(args)-1])
 		}
+	} else {
+		fmt.Println("error: too few parameters")
+		fmt.Println()
+		printUsage()
+		os.Exit(2)
 	}
 	return cfg, nil
 }
@@ -66,6 +66,7 @@ func init() {
 }
 
 func main() {
+	flag.CommandLine.Usage = printUsage
 	slog.Debug("Starting up, parsing flags and arguments")
 	flag.Parse()
 
@@ -81,8 +82,8 @@ func main() {
 		fmt.Printf("error: %s\n", err)
 		os.Exit(2)
 	}
-	slog.Debug(fmt.Sprintf("Looking up current price using timestamp %v", time.Now().Local()))
-	price, err := cache.TodaysPrices().Price(time.Now().Local())
+	slog.Debug(fmt.Sprintf("Looking up current price using timestamp %v", time.Now()))
+	price, err := cache.TodaysPrices().Price(time.Now())
 	if err != nil {
 		fmt.Printf("error: %s\n", err)
 		os.Exit(2)
