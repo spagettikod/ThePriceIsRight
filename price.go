@@ -1,13 +1,26 @@
-package main
+package thepriceisright
 
 import (
-	"encoding/json"
-	"fmt"
-	"io"
-	"net/http"
-	"os"
+	"errors"
+	"math"
 	"time"
 )
+
+var (
+	ErrNotFound = errors.New("no price found")
+	AreaCodes   = []string{"SE1", "SE2", "SE3", "SE4"}
+)
+
+type Config struct {
+	AreaCode   string
+	MaxPrice   float64
+	DaemonMode bool
+	DaemonPort string
+}
+
+func NewConfig() Config {
+	return Config{}
+}
 
 type Price struct {
 	SekPerKwh    float64   `json:"SEK_per_kWh"`
@@ -18,8 +31,28 @@ type Price struct {
 }
 
 type TodaysPrices struct {
-	Prices   []Price
-	IsCached bool `json:"-"`
+	Prices []Price
+	// HourlyBuckets keeps Prices for today in 24 buckets for each hour of the day.
+	HourlyBuckets map[int]Price
+	MeanPrice     float64
+}
+
+func NewTodaysPrices() TodaysPrices {
+	return TodaysPrices{
+		Prices:        []Price{},
+		HourlyBuckets: map[int]Price{},
+	}
+}
+
+func (tp *TodaysPrices) SetPrices(prices []Price) {
+	total := float64(0)
+	tp.Prices = prices
+	for _, p := range tp.Prices {
+		tp.HourlyBuckets[p.Start.Hour()] = p
+		total = total + p.SekPerKwh
+	}
+	factor := math.Pow(10, float64(2))
+	tp.MeanPrice = math.Round(total/24*factor) / factor
 }
 
 func (tp TodaysPrices) Price(timestamp time.Time) (Price, error) {
@@ -41,56 +74,4 @@ func (tp TodaysPrices) IsExpired(timestamp time.Time) bool {
 
 func (tp TodaysPrices) IsValid() bool {
 	return len(tp.Prices) == 24
-}
-
-func Load(areaCode string) (TodaysPrices, error) {
-	now := time.Now().Local()
-	todays, err := loadCache(areaCode)
-	if err != nil && err != ErrCacheFileNotFound {
-		return todays, fmt.Errorf("error while trying to load from cache: %w", err)
-	}
-
-	// if prices in cache is valid and has not expired we return the cache
-	if todays.IsValid() && !todays.IsExpired(now) {
-		debug("Found valid, and current, price list cache file")
-		return todays, nil
-	}
-	if todays.IsCached {
-		if todays.IsExpired(now) {
-			debug("Cache found but has expired, will download a new one")
-		}
-		if !todays.IsValid() {
-			debug("Cache found but it was invalid, will download a new one")
-		}
-	}
-
-	// cache was not accepted, fetch from REST API
-	url := fmt.Sprintf("https://www.elprisetjustnu.se/api/v1/prices/%d/%02d-%02d_%s.json", now.Year(), now.Month(), now.Day(), areaCode)
-	debug(fmt.Sprintf("Fetching new price list from %s", url))
-	resp, err := http.Get(url)
-	if err != nil {
-		return todays, fmt.Errorf("could not fetch daily prices from %s: %w", url, err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return todays, fmt.Errorf("calling %s responded with status code %v, expected status %v", url, resp.StatusCode, http.StatusOK)
-	}
-	debug("Downloaded price list without any errors, trying to read the price list")
-	bites, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return todays, fmt.Errorf("error while reading response from %s: %w", url, err)
-	}
-	if err := json.Unmarshal(bites, &todays.Prices); err != nil {
-		return todays, fmt.Errorf("error while marshaling response from %s: %w", url, err)
-	}
-
-	debug("New price list read without errors")
-	// save fetched prices as cache
-	cachePath, err := cachePath(areaCode)
-	if err != nil {
-		return todays, err
-	}
-	debug(fmt.Sprintf("Saving new price list cache file to %s", cachePath))
-	os.WriteFile(cachePath, bites, 0660)
-
-	return todays, nil
 }

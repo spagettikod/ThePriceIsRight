@@ -15,10 +15,10 @@ setup:
 	@mkdir -p $(OUTPUT)/macos
 
 build_linux: setup
-	@env GOOS=linux GOARCH=amd64 go build -o $(OUTPUT)/linux/tpir -ldflags "-X main.version=$(VERSION)" main.go
+	@env GOOS=linux GOARCH=amd64 go build -o $(OUTPUT)/linux/tpir -ldflags "-X main.version=$(VERSION)" cmd/tpir/main.go
 
 build_macos: setup
-	@env GOOS=darwin GOARCH=arm64 go build -o $(OUTPUT)/macos/tpir -ldflags "-X main.version=$(VERSION)" main.go
+	@env GOOS=darwin GOARCH=arm64 go build -o $(OUTPUT)/macos/tpir -ldflags "-X main.version=$(VERSION)" cmd/tpir/main.go
 
 pkg_linux: build_linux
 	@tar -C $(OUTPUT)/linux -czf $(OUTPUT)/tpir$(VERSION).linux-amd64.tar.gz tpir
