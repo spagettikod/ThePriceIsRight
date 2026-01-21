@@ -1,3 +1,5 @@
+### THIS PROJECT HAS BEEN MIGRATED TO https://codeberg.org/spagettikod/ThePriceIsRight
+
 <p><a href="https://www.elprisetjustnu.se"><img src="https://ik.imagekit.io/ajdfkwyt/hva-koster-strommen/elpriser-tillhandahalls-av-elprisetjustnu_ttNExOIU_.png" alt="Elpriser tillhandahålls av Elpriset just nu.se" width="200" height="45"></a></p> 
 
 # The Price Is Right
